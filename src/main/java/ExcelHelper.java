@@ -35,6 +35,22 @@ public class ExcelHelper {
         try (FileOutputStream fos = new FileOutputStream(resultFile)) {
             csvWriter = new CsvWriter(fos, ',', Charset.forName("GBK"));
             CsvWriter finalCsvWriter = csvWriter;
+            finalCsvWriter.writeRecord(new String[]{
+                    "数据表名",
+                    "数据表中文注释",
+                    "所属数据库名",
+                    "所属数据库实例端口",
+                    "开发厂商",
+                    "实施厂商",
+                    "无主键",
+                    "重复索引",
+                    "字符集不一致",
+                    "无效表/临时表",
+                    "字段精度有误",
+                    "无增量时间戳",
+                    "字段无注释",
+                    "存二进制数据"
+            });
             resMap.forEach((tableDomain, tableErrorCount) -> {
                 try {
                     finalCsvWriter.writeRecord(new String[]{
@@ -56,6 +72,22 @@ public class ExcelHelper {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+            });
+            finalCsvWriter.writeRecord(new String[]{
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    ""
             });
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -139,8 +171,8 @@ public class ExcelHelper {
 
     public static void main(String[] args) throws IOException {
         ExcelHelper excelHelper = new ExcelHelper();
-        String fileName = "定期巡检结果 - 数据库规范 - 云浮 - 202103.xlsx";
-        String parentPath = "C:\\Users\\chunmiaoz\\Desktop\\工作记录\\caiting\\定期巡检结果-3月\\";
+        String fileName = "定期巡检结果 - 数据库规范 - 省本级 - 202103.xlsx";
+        String parentPath = "C:\\Users\\chunmiaoz\\Desktop\\工作记录\\caiting\\定期巡检结果-3月\\定期巡检结果 - 数据库规范\\";
         excelHelper.countAllToOne(parentPath + fileName);
     }
 

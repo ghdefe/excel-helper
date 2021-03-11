@@ -13,6 +13,7 @@ public class TableDomain implements Comparable {
 
     private String tableName;
 
+
     public String getPort() {
         return port;
     }

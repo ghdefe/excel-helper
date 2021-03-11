@@ -1,4 +1,5 @@
 import com.csvreader.CsvWriter;
+import org.apache.commons.io.FileUtils;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -11,6 +12,8 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class ExcelHelper {
@@ -20,36 +23,40 @@ public class ExcelHelper {
      *
      * @param path
      */
-    public void countAllToOne(String path) {
-        String[] inputs = {
-                "定期巡检结果 - 数据库规范 - 省本级 - 202103.xlsx"
-//                "定期巡检结果 - 数据库规范 - 江门 - 202103.xlsx",
-//                "定期巡检结果 - 数据库规范 - 阳江 - 202103.xlsx",
-//                "定期巡检结果 - 数据库规范 - 云浮 - 202103.xlsx"
-        };
-        TreeSet<TableDomain> resSet = new TreeSet<>();
-        for (String input : inputs) {
-            File file = new File("D:\\工作记录\\caiting\\3月巡检\\" + input);
-            addResult(file, resSet);
-
-        }
+    public void countAllToOne(String path) throws IOException {
+        TreeMap<TableDomain, TableErrorCount> resMap = new TreeMap<>();
+        File file = new File(path);
+        addResult(file, resMap);
 
 
-        File resultFile = new File(System.getProperty("user.dir") + "/result", "table-result.csv");
+        File resultFile = new File(System.getProperty("user.dir") + "/result", "table-result-" + file.getName() + ".csv ");
+        FileUtils.forceMkdir(resultFile.getParentFile());
         CsvWriter csvWriter = null;
         try (FileOutputStream fos = new FileOutputStream(resultFile)) {
             csvWriter = new CsvWriter(fos, ',', Charset.forName("GBK"));
             CsvWriter finalCsvWriter = csvWriter;
-            for (TableDomain tableDomain : resSet) {
-                csvWriter.writeRecord(new String[]{
-                        tableDomain.getTableName(),
-                        tableDomain.getRemark(),
-                        tableDomain.getDbName(),
-                        tableDomain.getPort(),
-                        tableDomain.getTenantDev(),
-                        tableDomain.getTenantImpl()
-                });
-            }
+            resMap.forEach((tableDomain, tableErrorCount) -> {
+                try {
+                    finalCsvWriter.writeRecord(new String[]{
+                            tableDomain.getTableName(),
+                            tableDomain.getRemark(),
+                            tableDomain.getDbName(),
+                            tableDomain.getPort(),
+                            tableDomain.getTenantDev(),
+                            tableDomain.getTenantImpl(),
+                            String.valueOf(tableErrorCount.getNoPrimaryKey()),
+                            String.valueOf(tableErrorCount.getRepeatIndex()),
+                            String.valueOf(tableErrorCount.getCharacterIncorrect()),
+                            String.valueOf(tableErrorCount.getIrregularName()),
+                            String.valueOf(tableErrorCount.getPrecisionError()),
+                            String.valueOf(tableErrorCount.getNoIncrementalTimestamp()),
+                            String.valueOf(tableErrorCount.getNoColumnComment()),
+                            String.valueOf(tableErrorCount.getSaveBitData())
+                    });
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -62,12 +69,12 @@ public class ExcelHelper {
 
     }
 
-    private void addResult(File file, TreeSet<TableDomain> resSet) {
+    private void addResult(File file, TreeMap<TableDomain, TableErrorCount> resMap) {
         try (XSSFWorkbook workbook = new XSSFWorkbook(file)) {
             System.out.println("当前文件: " + file.getName());
             workbook.sheetIterator().forEachRemaining(sheet -> {
                 System.out.println("当前表: " + sheet.getSheetName());
-                if (sheet.getSheetName().equals("统计报告")) {
+                if (sheet.getSheetName().equals("统计报告") || sheet.getSheetName().equals("检查方法")) {
                     return;
                 }
                 sheet.forEach(row -> {
@@ -79,10 +86,44 @@ public class ExcelHelper {
                     port.setCellType(CellType.STRING);
                     tableDomain.setTenantImpl(row.getCell(0).getStringCellValue());
                     tableDomain.setPort(port.getStringCellValue());
-                    tableDomain.setRemark(row.getCell(2).getStringCellValue());
+                    Optional.ofNullable(row.getCell(2)).ifPresent(cell -> tableDomain.setRemark(cell.getStringCellValue()));
                     tableDomain.setDbName(row.getCell(3).getStringCellValue());
                     tableDomain.setTableName(row.getCell(4).getStringCellValue());
-                    resSet.add(tableDomain);
+                    TableErrorCount count = resMap.getOrDefault(tableDomain, new TableErrorCount());
+                    String sheetName = sheet.getSheetName();
+                    switch (sheetName) {
+                        case "无主键表":
+                            count.addNoPrimaryKey();
+                            break;
+
+                        case "重复索引":
+                            count.addRepeatIndex();
+                            break;
+
+                        case "字符集不一致（非utf8-utf8_bin）":
+                        case "字符集不一致(非utf8-utf8_bin)":
+                            count.addCharacterIncorrect();
+                            break;
+                        case "备份或临时表不规范":
+                            count.addIrregularName();
+                            break;
+                        case "精度有误":
+                            count.addPrecisionError();
+                            break;
+                        case "无增量时间戳":
+                            count.addNoIncrementalTimestamp();
+                            break;
+                        case "无注释":
+                            count.addNoColumnComment();
+                            break;
+                        case "存二进制数据":
+                            count.addSaveBitData();
+                            break;
+                        default:
+                            System.out.println("没有相应的表格: " + sheetName);
+                    }
+                    resMap.put(tableDomain, count);
+
 
                 });
 
@@ -96,9 +137,11 @@ public class ExcelHelper {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         ExcelHelper excelHelper = new ExcelHelper();
-        excelHelper.countAllToOne("D:\\工作记录\\caiting\\3月巡检\\定期巡检结果 - 数据库规范 - 省本级 - 202103.xlsx");
+        String fileName = "定期巡检结果 - 数据库规范 - 云浮 - 202103.xlsx";
+        String parentPath = "C:\\Users\\chunmiaoz\\Desktop\\工作记录\\caiting\\定期巡检结果-3月\\";
+        excelHelper.countAllToOne(parentPath + fileName);
     }
 
 }

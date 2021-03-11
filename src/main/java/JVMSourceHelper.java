@@ -13,16 +13,16 @@ import java.util.*;
 
 public class JVMSourceHelper {
 
-    public void getInResult() {
-        File file = new File("C:\\Users\\chunmiaoz\\Desktop\\工作记录\\caiting\\定期巡检结果-3月\\资源配额标准 - 定期巡检结果 - 阳江 - 202103.xlsx");
+    public void getInResult(String path) {
+        File file = new File(path);
         try (
                 FileInputStream is = new FileInputStream(file);
                 XSSFWorkbook workbook = new XSSFWorkbook(is);
-                FileOutputStream os = new FileOutputStream(new File("C:\\Users\\chunmiaoz\\Desktop\\工作记录\\caiting\\excel-helper\\result\\result.csv"),true)
+                FileOutputStream os = new FileOutputStream(new File(System.getProperty("user.dir") + "/result", "result-no-in.csv"), false)
         ) {
             CsvWriter writer = new CsvWriter(os, ',', Charset.forName("GBK"));
             XSSFSheet stand = workbook.getSheetAt(0);
-            XSSFSheet data = workbook.getSheetAt(2);
+            XSSFSheet data = workbook.getSheetAt(1);
             Map<String, JVMConfig> resultHashMap = getDataResultHashMap(data);
             int lastRowNum = stand.getLastRowNum();
             for (int i = 0; i < lastRowNum; i++) {
@@ -40,7 +40,7 @@ public class JVMSourceHelper {
                         double memory = config.getMemory();
                         String nameSpace = config.getNameSpace();
                         writer.writeRecord(new String[]{
-                                name, String.valueOf(cpu), String.valueOf(memory), String.valueOf(copy), String.valueOf(initMemory), String.valueOf(maxMemory), groupName, nameSpace
+                                name, "","",String.valueOf(cpu), String.valueOf(memory), String.valueOf(copy), String.valueOf(initMemory), String.valueOf(maxMemory), groupName, nameSpace
                         });
                     } else {
                         writer.writeRecord(new String[]{
@@ -57,7 +57,6 @@ public class JVMSourceHelper {
         }
 
     }
-
 
 
     public Map<String, JVMConfig> getDataResultHashMap(XSSFSheet data) {
@@ -97,16 +96,19 @@ public class JVMSourceHelper {
         return map;
     }
 
-    public void getNotInResult() {
-        File file = new File("C:\\Users\\chunmiaoz\\Desktop\\工作记录\\caiting\\定期巡检结果-3月\\资源配额标准 - 定期巡检结果 - 阳江 - 202103.xlsx");
+    public void getNotInResult(String path) {
+        int copyErrorCount = 0;
+        int memoryErrorCount = 0;
+        int jvmConfigErrorCount = 0;
+        File file = new File(path);
         try (
                 FileInputStream is = new FileInputStream(file);
                 XSSFWorkbook workbook = new XSSFWorkbook(is);
-                FileOutputStream os = new FileOutputStream(new File("C:\\Users\\chunmiaoz\\Desktop\\工作记录\\caiting\\excel-helper\\result\\result.csv"),true)
+                FileOutputStream os = new FileOutputStream(new File(System.getProperty("user.dir") + "/result", "result-in.csv"), false)
         ) {
             CsvWriter writer = new CsvWriter(os, ',', Charset.forName("GBK"));
             XSSFSheet stand = workbook.getSheetAt(0);
-            XSSFSheet data = workbook.getSheetAt(2);
+            XSSFSheet data = workbook.getSheetAt(1);
             final HashSet<String> resSet = new HashSet<>();
             int lastRowNum = stand.getLastRowNum();
             for (int i = 0; i < lastRowNum; i++) {
@@ -118,19 +120,44 @@ public class JVMSourceHelper {
                 }
             }
             final int lastRowNum1 = data.getLastRowNum();
+
             for (int i = 1; i < lastRowNum1; i++) {
                 final XSSFRow row = data.getRow(i);
                 final String name = row.getCell(2).getStringCellValue();
+                if (name.isEmpty()) {
+                    continue;
+                }
+                String cpu = String.valueOf(row.getCell(4).getNumericCellValue());
+                String memory = String.valueOf(row.getCell(5).getNumericCellValue());
+                String copy = String.valueOf(row.getCell(3).getNumericCellValue());
+                String initMemory = String.valueOf(row.getCell(6).getNumericCellValue());
+                String maxMemory = String.valueOf(row.getCell(7).getNumericCellValue());
+                String groupName = row.getCell(0).getStringCellValue();
+                String nameSpace = row.getCell(1).getStringCellValue();
+                if (!checkCopy(copy)) {
+                    copyErrorCount++;
+                }
+
+                if (!checkMemory(memory, initMemory, maxMemory)) {
+                    memoryErrorCount++;
+                }
+
+                if (!initMemory.contains("%")) {
+                    jvmConfigErrorCount++;
+                }
                 if (!resSet.contains(name)) {
+
                     writer.writeRecord(new String[]{
                             name,
-                            String.valueOf(row.getCell(4).getNumericCellValue()),
-                            String.valueOf(row.getCell(5).getNumericCellValue()),
-                            String.valueOf(row.getCell(3).getNumericCellValue()),
-                            String.valueOf(row.getCell(6).getNumericCellValue()),
-                            String.valueOf(row.getCell(7).getNumericCellValue()),
-                            row.getCell(0).getStringCellValue(),
-                            row.getCell(1).getStringCellValue()
+                            "",
+                            "",
+                            cpu,
+                            memory,
+                            copy,
+                            initMemory,
+                            maxMemory,
+                            groupName,
+                            nameSpace
                     });
 
                 }
@@ -140,9 +167,71 @@ public class JVMSourceHelper {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        System.out.println("副本数不符: " + copyErrorCount);
+        System.out.println("内存配额不当: " + memoryErrorCount);
+        System.out.println("Jvm配置不当: " + jvmConfigErrorCount);
+    }
+
+    public boolean checkCopy(String copy) {
+        return Float.parseFloat(copy) >1;
+
+    }
+
+    public boolean checkMemory(String memoryStr,String initMemoryStr,String maxMemoryStr) {
+        if (initMemoryStr.contains("%")) {
+            float initRam = Float.parseFloat(initMemoryStr.substring(0, initMemoryStr.length() - 1));
+            float maxRam = Float.parseFloat(maxMemoryStr.substring(0, maxMemoryStr.length() - 1));
+            return checkMemory(initRam,maxRam);
+        } else {
+
+            float memory = Float.parseFloat(memoryStr);
+            float initMemory = Float.parseFloat(initMemoryStr);
+            float maxMemory = Float.parseFloat(maxMemoryStr);
+            memory = memory < 100 ? memory * 1024 : memory;
+            initMemory = initMemory < 100 ? initMemory * 1024 : initMemory;
+            maxMemory = maxMemory < 100 ? maxMemory * 1024 : maxMemory;
+            return checkMemory(initMemory,maxMemory,memory);
+        }
+
+
+
+
+
+    }
+
+
+    public boolean checkMemory(float initRam, float maxRam, float totalRam) {
+        float initPercent = initRam / totalRam;
+        float maxPercent = maxRam / totalRam;
+
+        if (initPercent >= 0.3f && initPercent <= 0.5f) {
+            if (maxPercent >= 0.8f && maxPercent <= 0.9f) {
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+        return true;
+    }
+
+    public boolean checkMemory(float initRam, float maxRam) {
+        if (initRam >= 30 && initRam <= 50) {
+            if (maxRam >= 80 && maxRam <= 90) {
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+        return true;
     }
 
     public static void main(String[] args) {
-        new JVMSourceHelper().getNotInResult();
+        JVMSourceHelper jvmSourceHelper = new JVMSourceHelper();
+        String path = "D:\\工作记录\\caiting\\3月巡检\\定期巡检结果 - 资源配额标准 - 汕头 - 202103.xlsx";
+        jvmSourceHelper.getInResult(path);
+        jvmSourceHelper.getNotInResult(path);
     }
 }

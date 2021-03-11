@@ -15,12 +15,12 @@ import java.util.Objects;
 public class DataSourceHelper {
 
     public void readExcel() {
-        File file = new File("C:\\Users\\chunmiaoz\\Desktop\\工作记录\\caiting\\定期巡检结果-3月\\定期巡检结果 - 数据库规范 - 阳江 - 202103.xlsx");
+        File file = new File("D:\\工作记录\\caiting\\3月巡检\\定期巡检结果 - 数据库规范 - 云浮 - 202103.xlsx");
         try (
                 XSSFWorkbook workbook = new XSSFWorkbook(new FileInputStream(file));
         ) {
             final Iterator<Sheet> iterator = workbook.sheetIterator();
-            iterator.next();
+//            iterator.next();
             while (iterator.hasNext()) {
                 Sheet sheet = iterator.next();
                 String sheetName = sheet.getSheetName();
@@ -61,7 +61,6 @@ public class DataSourceHelper {
                 }
 
                 // 输出统计结果
-                System.out.println(resHM);
                 generateResult(resHM,sheetName);
 
             }
@@ -72,8 +71,8 @@ public class DataSourceHelper {
 
     }
 
-    public void generateResult(HashMap<DBInstance, Integer> resHM,String question) throws FileNotFoundException {
-        File file = new File("C:\\Users\\chunmiaoz\\Desktop\\工作记录\\caiting\\excel-helper\\result\\result.csv");
+    public void generateResult(HashMap<DBInstance, Integer> resHM,String question) {
+        File file = new File(System.getProperty("user.dir") + "/result","result-db.csv");
         if (!file.getParentFile().exists()) {
             file.getParentFile().mkdirs();
         }
@@ -103,6 +102,9 @@ public class DataSourceHelper {
 
 
     }
+
+
+
 
     public static void main(String[] args) {
         new DataSourceHelper().readExcel();

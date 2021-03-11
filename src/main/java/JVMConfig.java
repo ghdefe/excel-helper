@@ -17,12 +17,21 @@ public class JVMConfig {
 
     private String name;
 
+    /**
+     * 替换所有的'-'成为'_'
+     * @param input
+     * @return
+     */
+    private String ignoreLine(String input){
+        return input.replace('-','_');
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         JVMConfig jvmConfig = (JVMConfig) o;
-        return name.equals(jvmConfig.name);
+        return ignoreLine(name).equals(ignoreLine(jvmConfig.name));
     }
 
     @Override

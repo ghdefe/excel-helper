@@ -31,9 +31,8 @@ public class ExcelHelper {
 
         File resultFile = new File(System.getProperty("user.dir") + "/result", "table-result-" + file.getName() + ".csv ");
         FileUtils.forceMkdir(resultFile.getParentFile());
-        CsvWriter csvWriter = null;
         try (FileOutputStream fos = new FileOutputStream(resultFile)) {
-            csvWriter = new CsvWriter(fos, ',', Charset.forName("GBK"));
+            CsvWriter csvWriter = new CsvWriter(fos, ',', Charset.forName("GBK"));
             CsvWriter finalCsvWriter = csvWriter;
             finalCsvWriter.writeRecord(new String[]{
                     "数据表名",
@@ -89,14 +88,9 @@ public class ExcelHelper {
                     "",
                     ""
             });
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            csvWriter.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (csvWriter != null) {
-                csvWriter.close();
-            }
         }
 
     }
@@ -162,9 +156,7 @@ public class ExcelHelper {
             });
 
 
-        } catch (InvalidFormatException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (InvalidFormatException | IOException e) {
             e.printStackTrace();
         }
     }

@@ -13,23 +13,31 @@ public class TableDomain implements Comparable {
 
     private String tableName;
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
 
-    public String getPort() {
-        return port;
+        TableDomain that = (TableDomain) o;
+
+        if (!Objects.equals(dbName.trim(), that.dbName.trim())) return false;
+        return Objects.equals(tableName.trim(), that.tableName.trim());
     }
 
-    public void setPort(String port) {
-        this.port = port;
+    @Override
+    public int hashCode() {
+        int result = dbName != null ? dbName.hashCode() : 0;
+        result = 31 * result + (tableName != null ? tableName.hashCode() : 0);
+        return result;
     }
 
     @Override
     public int compareTo(Object o) {
-        String a = dbName + tableName;
+        String a = dbName.trim() + tableName.trim();
         TableDomain o1 = (TableDomain) o;
-        String b = o1.dbName + o1.tableName;
+        String b = o1.dbName.trim() + o1.tableName.trim();
         return a.compareTo(b);
     }
-
 
     @Override
     public String toString() {
@@ -41,6 +49,14 @@ public class TableDomain implements Comparable {
                 ", dbName='" + dbName + '\'' +
                 ", tableName='" + tableName + '\'' +
                 '}';
+    }
+
+    public String getPort() {
+        return port;
+    }
+
+    public void setPort(String port) {
+        this.port = port;
     }
 
     public String getTenantDev() {
